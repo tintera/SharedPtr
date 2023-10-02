@@ -5,14 +5,16 @@
 ///	- Destructor of pointed object must not throw. Or operators =, == have undefined behavior.
 ///	- Published as single header file for readability.
 ///
+///	Formatting: Using sneak_case as stl. This sample takes method signatures from stl, so does casing.
+///
 /// Known limits:
-///	- Some race condition exist. Best to fix them and keep implementation lock free. And keep default constructor noexcept (as in std::)
 ///	- Owned object is not part of control block.
 /// - No custom deleter or allocator.
 ///	- No separate template type for constructors. (std::shared_ptr constructor has another template type Y)
 ///	- No make_shared function.
 ///	- No std::hash<std::shared_ptr>
 ///	- No std::atomic<std::shared_ptr>
+///	- No enable_shared_from_this
 ///
 /// Omitted (not much to learn in implementing them IMHO)
 /// - reset
@@ -41,7 +43,9 @@ class shared_ptr
 		}
 
 		std::atomic<int> usages_{1};
-		std::atomic<int> weak_usages_{0};
+		/// Control block is always created by a shared ptr. Now weak_ptr alone can create control_block.
+		/// All shared pointers collectively have one weak pointer so they keep control block "alive".
+		std::atomic<int> weak_usages_{1}; 
 		T* payload_{nullptr};
 	};
 
@@ -53,16 +57,21 @@ class shared_ptr
 		{
 			return;
 		}
-		--control_->usages_;
-		if (control_->usages_ == 0)
+		if (--control_->usages_ == 0)
 		{
-			// Last owner. We are in a single threaded scenario now.
+			// Last strong owner.
+			// There might still be another (thread with) std::weak_ptr pointing to our control_block.
 			delete control_->payload_;
-			if (control_->weak_usages_ == 0)
+			if (--control_->weak_usages_ == 0)
 			{
 				delete control_;
 			}
 		}
+	}
+
+	friend void swap(shared_ptr& lhs, shared_ptr& rhs) noexcept
+	{
+		std::swap(lhs.control_, rhs.control_);
 	}
 
 public:
@@ -72,7 +81,7 @@ public:
 
 	explicit shared_ptr(T* ptr)
 	try
-		: control_(new control_block(ptr))
+		: control_(ptr ? new control_block(ptr) : nullptr)
 	{
 	}
 	catch(...)
@@ -81,8 +90,8 @@ public:
 		throw;
 	}
 
-	explicit shared_ptr(std::unique_ptr<T>&& ptr)
-		: control_(new control_block(ptr.get()))
+	explicit shared_ptr(std::unique_ptr<T,  std::default_delete<T>>&& ptr)
+		: control_(new control_block(ptr.release()))
 	{
 	}
 
@@ -94,9 +103,9 @@ public:
 	shared_ptr(const shared_ptr& other) noexcept
 		: control_{other.control_}
 	{
-		if(control_)
+		if(other)
 		{
-			// TODO: Race condition, control can be deleted before usages_ is incremented.
+			// here at least one valid shared ptr exists. No need to check usages_ for zero.
 			++control_->usages_;
 		}
 	}
@@ -108,30 +117,33 @@ public:
 
 	template< class Y >
 	explicit shared_ptr( const weak_ptr<Y>& r )
+		: control_(r.control_)
 	{
-		if (r.expired())
-		{
-			throw std::bad_weak_ptr{};
-		}
-		control_ = r.control_;
-		++control_->usages_;
+		int usages = control_->usages_.load();
+		do{
+			if (usages == 0)
+			{
+				throw std::bad_weak_ptr{};
+			}
+		} while(control_->usages_.compare_exchange_weak(usages, 1 + usages));
 	}
 
-	shared_ptr& operator=(const shared_ptr& other) noexcept
+	// This = operator works for both l-value and r-value.
+	shared_ptr& operator=(shared_ptr<T> other) noexcept
 	{
-		if(this == &other) {
-			return *this;
-		}
-		finish_one_instance_();
-		control_ = other.control_;
-		++other.use_count();
+		using std::swap;
+		swap(*this, other); 
 		return *this;
 	}
 
-	shared_ptr& operator=(shared_ptr&& other) noexcept
+	friend bool operator==(const shared_ptr& lhs, const shared_ptr& rhs)
 	{
-		std::swap(this, shared_ptr{other}); 
-		return *this;
+		return lhs.get() == rhs.get();
+	}
+
+	friend bool operator!=(const shared_ptr& lhs, const shared_ptr& rhs)
+	{
+		return !(lhs == rhs);
 	}
 
 	[[nodiscard]] explicit operator bool() const noexcept
@@ -147,7 +159,6 @@ public:
 
 	[[nodiscard]] T* get() const noexcept
 	{
-		// No race condition. The control exists while it's owned by this shared_ptr.
 		return control_ ? control_->payload_ : nullptr;
 	}
 
@@ -163,7 +174,6 @@ public:
 
 	[[nodiscard]] long use_count() const noexcept
 	{
-		// No race condition. The control_ exists while it's owned by this shared_ptr
 		return control_ ? control_->usages_.load() : 0;
 	}
 
@@ -181,15 +191,20 @@ class weak_ptr
 	friend class shared_ptr<T>;
 
 	typename shared_ptr<T>::control_block* control_{nullptr};
+
 public:
+	friend void swap(weak_ptr& lhs, weak_ptr& rhs) noexcept
+	{
+		std::swap(lhs.control_, rhs.control_);
+	}
+
 	constexpr weak_ptr() noexcept = default;
 
 	~weak_ptr()
 	{
 		if (control_)
 		{
-			--control_->weak_usages_;
-			if (control_->usages_ == 0 && control_->weak_usages_ == 0)
+			if (--control_->weak_usages_ == 0)
 			{
 				delete control_;
 			}
@@ -201,34 +216,23 @@ public:
 	{
 		if (control_)
 		{
-			// TODO: Race condition, control can be deleted before weak_usages_ is incremented.
 			++control_->weak_usages_;
 		}
 	}
 
-	// TODO: explicit dod not compile
-	weak_ptr( const weak_ptr& r ) noexcept
+	// TODO: explicit did not compile
+	weak_ptr(const weak_ptr& r) noexcept
 	{
 		control_ = r.control_;
 		if (control_)
 		{
-			// TODO: Race condition, control can be deleted before weak_usages_ is incremented.
 			++r.control_->weak_usages_;
 		}
 	}
 
-	explicit weak_ptr(weak_ptr&& r) noexcept
+	weak_ptr& operator=(weak_ptr other) noexcept
 	{
-		std::swap(*this, r);
-	}
-
-	weak_ptr& operator=(const weak_ptr& other) noexcept
-	{
-		if(this == &other)
-		{
-			return *this;
-		}
-		std::swap(*this, weak_ptr{other});
+		std::swap(*this, other);
 		return *this;
 	}
 
@@ -243,9 +247,16 @@ public:
 		return (!control_) || (control_->usages_ == 0);
 	}
 
-	shared_ptr<T> lock()
+	shared_ptr<T> lock()noexcept
 	{
-		return expired() ? shared_ptr<T>() : shared_ptr<T>(*this);
+		try
+		{
+			return expired() ? shared_ptr<T>{} : shared_ptr<T>{*this};
+		}
+		catch (const std::bad_weak_ptr&)
+		{
+			return shared_ptr<T>{};
+		}
 	}
 };
 
