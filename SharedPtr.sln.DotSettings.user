@@ -1,4 +1,9 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=19effdd1_002D5dfd_002D4287_002D9346_002Dabb522b0ac58/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="No memory for counter" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::No memory for counter&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=849757cf_002D62ce_002D426e_002Db015_002Db50ac8d6562b/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="Weak ptr keeps control block." xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
   &lt;TestAncestor&gt;&#xD;
     &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::Weak ptr keeps control block.&lt;/TestId&gt;&#xD;
@@ -6,5 +11,13 @@
     &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::Create a pointer to object and move it.&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::Create a pointer to object.&lt;/TestId&gt;&#xD;
     &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::Testing empty custom shared ponter.&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::Pointer to subclass&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::No memory for counter&lt;/TestId&gt;&#xD;
+    &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::No memory for counter throws&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=8fec9ac7_002D8a21_002D4333_002D97f6_002Dab8da9b86eed/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" Name="No memory for counter #2" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;Catch::1C4B7363-E355-4C44-ABE3-37B9F3F08564::Windows,Version=v10.0.22621::No memory for counter&lt;/TestId&gt;&#xD;
   &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

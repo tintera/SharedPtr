@@ -84,13 +84,13 @@ public:
 		: control_(ptr ? new control_block(ptr) : nullptr)
 	{
 	}
-	catch(...)
+	catch(const std::bad_alloc&)
 	{
 		delete ptr;
 		throw;
 	}
 
-	explicit shared_ptr(std::unique_ptr<T,  std::default_delete<T>>&& ptr)
+	explicit shared_ptr(std::unique_ptr<T, std::default_delete<T>>&& ptr)
 		: control_(new control_block(ptr.release()))
 	{
 	}

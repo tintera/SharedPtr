@@ -1,4 +1,4 @@
-#define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
+#define CATCH_CONFIG_RUNNER
 #include "catch.hpp"
 #include "shared_ptr.h"
 
@@ -31,7 +31,7 @@ public:
 		++created[id_];
 	}
 
-	~my_object()
+	virtual ~my_object()
 	{
 		std::cout << "Deleting object: " << id_ << "\n";
 		++deleted[id_];
@@ -69,9 +69,28 @@ public:
 		return *this;
 	}
 
-	int id() const
+	[[nodiscard]] int id() const
 	{
 		return id_;
+	}
+
+	[[nodiscard]] virtual int classId()
+	{
+		return 1;
+	}
+};
+
+class derived final : public my_object
+{
+public:
+	[[nodiscard]] int classId() override
+	{
+		return 2;
+	}
+
+	virtual ~derived()
+	{
+		std::cout << "Deleting derived object: " << id_ << "\n";
 	}
 };
 
@@ -281,4 +300,69 @@ TEST_CASE("Converting unique pointer to shared_ptr")
 	//}
 }
 
+std::atomic_int break_new{0};
 
+void* operator new( std::size_t size, const std::nothrow_t& tag ) noexcept
+{
+	//std::printf("1) new(size_t, nothrow), size = %zu\n", size);
+	if (int expected = 1; break_new.compare_exchange_strong(expected, 0))
+	{
+		return nullptr;
+	}
+	if (size == 0)
+	{
+		++size; // avoid std::malloc(0) which may return nullptr on success
+	}
+	return std::malloc(size);
+}
+
+void* operator new(std::size_t size)
+{
+	//std::printf("1) new(size_t), size = %zu\n", size);
+	if (int expected = 1; break_new.compare_exchange_strong(expected, 0))
+	{
+		throw std::bad_alloc{}; // for testing purposes
+	}
+	if (size == 0)
+	{
+		++size; // avoid std::malloc(0) which may return nullptr on success
+	}
+ 
+	if (void *ptr = std::malloc(size))
+	{
+		return ptr;
+	}
+	throw std::bad_alloc{}; // required by [new.delete.single]/3
+}
+
+
+TEST_CASE("No memory for counter throws", "[]")
+{
+	auto* ptr = new my_object{};
+	auto create_me = [&ptr]()
+	{
+		++break_new;
+		smart_ptr::shared_ptr<my_object> shared{ptr};
+	};
+	REQUIRE_THROWS_AS(create_me(), std::bad_alloc);
+}
+
+
+TEST_CASE("Pointer to subclass")
+{
+	auto* orig = new my_object;
+	auto* der = new derived();
+	smart_ptr::shared_ptr<my_object> shared_orig{orig};
+	smart_ptr::shared_ptr<derived> shared_der{der};
+	//shared_orig = shared_der;
+}
+
+
+//------------------------------------------------------------------------
+
+int main(const int argc, char* argv[])
+{
+	const int result = Catch::Session().run( argc, argv );
+	// global clean-up...
+	return result;
+}
