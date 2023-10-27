@@ -1,5 +1,5 @@
 # CMakeLists.txt
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(shared_ptr CXX)
 set(SOURCE_FILES ${PROJECT_SOURCE_DIR}/shared_ptr_test.cpp)
 add_executable(shared_ptr ${SOURCE_FILES})
